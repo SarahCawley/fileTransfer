@@ -19,72 +19,29 @@ void error(const char *msg)
     exit(1);
 }
 
-/*zero pad the length of the file buffer to be the correct size
-* takes: fileLength, how many int characters in string
-* zeroPadded, char * to hold zero padded length
-* fileLength, how many int characters in string
-* zeroPaddedLength, zero pad length
-*/
-// char * zeroPadLengthString(char * filelengthStr, char * zeroPaddedFileLengthStr, int fileLength ,  int zeroPaddedLength ){
-    
-//     char * zeroInt = "0";
-//     int i;
-
-//     if(fileLength < zeroPaddedLength){
-//         zeroPaddedFileLengthStr = concat( zeroInt, filelengthStr);
-//         for( i=0; i < zeroPaddedLength-1; i++){
-//             zeroPaddedFileLengthStr = concat( zeroInt, zeroPaddedFileLengthStr);
-//         }
-//     }
-//     return zeroPaddedFileLengthStr;
-// }
+char * intToString(int n, char * string){
+    char *result = malloc(n);
+    sprintf(result, "%d", n);
+    return result;
+}
 
 /* concatinate strings together 
  * takes two string pointers, concats sencond to the end of the first
  * returns the pointer to the new string
 */
-char* concat(char *s1,  char *s2){
+char* concat(const char *s1, const char *s2)
+{
     char *result = malloc(strlen(s1)+strlen(s2)+1);//+1 for the zero-terminator
+    //in real code you would check for errors in malloc here
     strcpy(result, s1);
     strcat(result, s2);
     return result;
 }
 
-/* write to socket 
-* takes socket and string
-*/
-void writeToSocket(int newsockfd, char * stringToSend){
-    //how many int characters in string
-    int fileLength = strlen(stringToSend);
-    int n;
-    
-    // how many chars to zero pad to
-//    int zeroPaddedLength = 10;
-    
-    // string to convert int to char in to
-    char filelengthStr[fileLength];
-
-    // char * to hold zero padded length
- //   char* zeroPaddedFileLengthStr;
-    //convert length into char *
-    sprintf(filelengthStr, "%d", fileLength);
-    // zero pad length
-  //  zeroPaddedFileLengthStr = zeroPadLengthString(filelengthStr, zeroPaddedFileLengthStr, fileLength , zeroPaddedLength );
-
-    //send message length
-    n = write(newsockfd, filelengthStr , fileLength);
-    if (n < 0) 
-         error("ERROR writing to socket");
-
-    //send message
-    n = write(newsockfd, stringToSend ,fileLength);
-    if (n < 0) 
-         error("ERROR writing to socket");
-
-}
-
+/* write to socket */
 
 /*read from socket*/
+
 
 /*Creates string with file names from the directory
 * takes a string pointer, reads each file from dir, concats to string
@@ -111,15 +68,19 @@ char * createFileNameString(char * fileStr){
     return fileStr;
 }
 
+
 int main(int argc, char *argv[])
 {
-    
+    char * fileStr = "\nDirectory Listing From Server:\n"; //holds string with all files
+    int stringLengthInt = 0; //to store length of string as int
+    char * stringLengthStr; //to store length of string as char *
     int sockfd, newsockfd, portno;
     socklen_t clilen;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
-    int n;
+    int n, i;
     char * stringToSend;
+    
     
 
     /*print hostname hostname*/
@@ -149,39 +110,32 @@ int main(int argc, char *argv[])
         error("ERROR on binding");
 
 
-    //listen for the new connection
+    //listen for the new connection and connect
     listen(sockfd,5);
    
     clilen = sizeof(cli_addr);
     newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-    
     if (newsockfd < 0) 
         error("ERROR on accept");
     printf("Client connected\n");
 
-
-    n = write(newsockfd,"Server Connected",16);
+    n = write(newsockfd,"Server Connected\n",17);
     if (n < 0) error("ERROR writing to socket");
 
-    //Send file names
-    stringToSend = createFileNameString(stringToSend);
-    writeToSocket(newsockfd, stringToSend);
 
 
 
+    //Sends file names
+    fileStr = createFileNameString(fileStr);
+    stringLengthInt = strlen(fileStr);
+    stringLengthStr = intToString(stringLengthInt, stringLengthStr);
+    while( strlen(stringLengthStr) < 10){
+        stringLengthStr = concat("0", stringLengthStr);
+    }
+    //sends length of string to come
+    write(newsockfd, stringLengthStr, 10);
+    //send file names
+    write(newsockfd, fileStr ,stringLengthInt);
 
-    bzero(buffer,256);
-    
-    n = read(newsockfd,buffer,255);
-
-    if (n < 0) error("ERROR reading from socket");
-  
-
-
-
-    printf("Here is the message: %s\n",buffer);
-    
-    close(newsockfd);
-    close(sockfd);
     return 0; 
 }

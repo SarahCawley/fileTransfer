@@ -8,12 +8,13 @@ import sys					# Import system to read from command line
 
 s = socket.socket()         # Create a socket object
 
-#function to list files
-
-
-#function to get files
-
-
+#function to read from socket
+# def readFromServer(s):
+# 	fileLength = s.recv(2)
+# 	print "the file length is: " + fileLength
+# 	fileLength = int(fileLength)
+# 	fileName = s.recv(fileLength)
+# 	print fileName
 
 # check hostname and portnumber from command line
 if( len(sys.argv) < 4):
@@ -26,45 +27,14 @@ port = int(sys.argv[2])
 
 # connect to server
 s.connect((server, port))
-print s.recv(16)
+print s.recv(17)
 #if is listing files
 
-# get number of files
-# numFiles = s.recv(10)
-# print "there are " + numFiles + " files\n"
-# numFiles = int(numFiles)
-# print  "The files are:\n"
-# x = 0
-# while x < numFiles:
-# 	print x
-# 	print s.recv(1024)
-# 	x += 1
-
-# display list of files
-while True:
-	#get file name length
-	fileLength = s.recv(2)
-	#rint "file name is " + fileLength + " long\n"
-	fileLength = int(fileLength)
-
-	#check if filename is less than 10 char long
-	if fileLength > 90:
-		fileLength -= 90
-
-	fileLength += 2
-	fileName = s.recv(fileLength)
-	fileName = fileName.rstrip()
-	print fileName
-	# while fileLength > 0:
-	# 	print fileLength 
-	# 	print fileName
-	# 	fileLength -= 1
-	#fileName = s.recv(fileLength)
-	# if fileName == "no":
-	# 	quit()
-	#print s.recv(fileLength)
-	#print s.recv(fileLength)
-
+#readFromServer(s)
+fileLength = s.recv(10)
+fileLength = int(fileLength)
+stringFromServer = s.recv(fileLength)
+print stringFromServer
 
 # if is getting files
 

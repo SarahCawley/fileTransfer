@@ -19,8 +19,16 @@ void error(const char *msg)
     exit(1);
 }
 
+char * intToString(int n, char * string){
+    char *result = malloc(n);
+    sprintf(result, "%d", n);
+    return result;
+}
 
-
+/* concatinate strings together 
+ * takes two string pointers, concats sencond to the end of the first
+ * returns the pointer to the new string
+*/
 char* concat(const char *s1, const char *s2)
 {
     char *result = malloc(strlen(s1)+strlen(s2)+1);//+1 for the zero-terminator
@@ -34,28 +42,16 @@ char* concat(const char *s1, const char *s2)
 
 /*read from socket*/
 
-/* send array of file names */
-void sendFileNames(){
-    char * fileStr;
-    char * s1 = "longFile.txt";
-    char * s2 = "shortFile.txt";
-    char * newLine = "\n";
-    int fileLength = 0;
 
-    fileStr = concat( s1, newLine);
-    fileStr = concat(fileStr, s2);
-    fileStr = concat(fileStr, newLine);
-    fileLength = strlen(fileStr);
-    printf("The concated string is\n%sthe length is %i\n", fileStr, fileLength);
-}
-
-/*list files in dir*/
-char * listFiles(char * fileStr){
+/*Creates string with file names from the directory
+* takes a string pointer, reads each file from dir, concats to string
+* retuns a string with formatted file names
+*/
+char * createFileNameString(char * fileStr){
     DIR           *d;
     struct dirent *dir;
     char * newLine = "\n";
    
-
     d = opendir(".");
     if (d)
     {
@@ -72,18 +68,19 @@ char * listFiles(char * fileStr){
     return fileStr;
 }
 
+
 int main(int argc, char *argv[])
 {
-    char * fileStr = "\nThese are the files:\n";
-    int stringLength = 0;
-    
+    char * fileStr = "\nDirectory Listing From Server:\n"; //holds string with all files
+    int stringLengthInt = 0; //to store length of string as int
+    char * stringLengthStr; //to store length of string as char *
     int sockfd, newsockfd, portno;
     socklen_t clilen;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
-    int n;
+    int n, i;
     char * stringToSend;
-    char fileLength[5];
+    
     
 
     /*print hostname hostname*/
@@ -113,33 +110,32 @@ int main(int argc, char *argv[])
         error("ERROR on binding");
 
 
-    //listen for the new connection
+    //listen for the new connection and connect
     listen(sockfd,5);
    
     clilen = sizeof(cli_addr);
     newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-    
     if (newsockfd < 0) 
         error("ERROR on accept");
     printf("Client connected\n");
 
-
-    n = write(newsockfd,"Server Connected",16);
+    n = write(newsockfd,"Server Connected\n",17);
     if (n < 0) error("ERROR writing to socket");
 
 
 
 
-    //sendFileNames();
-    fileStr = listFiles(fileStr);
-    stringLength = strlen(fileStr);
-    printf("%s length is %i", fileStr, stringLength);
-
-    sprintf(fileLength, "%d", stringLength);
-
-    write(newsockfd, "10", 2);
+    //Sends file names
+    fileStr = createFileNameString(fileStr);
+    stringLengthInt = strlen(fileStr);
+    stringLengthStr = intToString(stringLengthInt, stringLengthStr);
+    while( strlen(stringLengthStr) < 10){
+        stringLengthStr = concat("0", stringLengthStr);
+    }
+    //sends length of string to come
+    write(newsockfd, stringLengthStr, 10);
     //send file names
-    write(newsockfd, fileStr ,stringLength);
+    write(newsockfd, fileStr ,stringLengthInt);
 
     return 0; 
 }

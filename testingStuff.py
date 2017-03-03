@@ -31,9 +31,9 @@ print s.recv(16)
 #if is listing files
 
 #readFromServer(s)
-# fileLength = s.recv(2)
-# print "the file length is: " + fileLength
-# fileLength = int(fileLength)
+fileLength = s.recv(2)
+print "the file length is: " + fileLength
+fileLength = int(fileLength)
 fileName = s.recv(1000)
 print fileName
 

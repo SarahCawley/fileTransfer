@@ -74,7 +74,7 @@ char * listFiles(char * fileStr){
 
 int main(int argc, char *argv[])
 {
-    char * fileStr = " These are the files:\n";
+    char * fileStr = "\nThese are the files:\n";
     int stringLength = 0;
     
     int sockfd, newsockfd, portno;
@@ -83,6 +83,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in serv_addr, cli_addr;
     int n;
     char * stringToSend;
+    char fileLength[5];
     
 
     /*print hostname hostname*/
@@ -134,6 +135,9 @@ int main(int argc, char *argv[])
     stringLength = strlen(fileStr);
     printf("%s length is %i", fileStr, stringLength);
 
+    sprintf(fileLength, "%d", stringLength);
+
+    write(newsockfd, "10", 2);
     //send file names
     write(newsockfd, fileStr ,stringLength);
 

@@ -132,6 +132,9 @@ int main(int argc, char *argv[])
     while( strlen(stringLengthStr) < 10){
         stringLengthStr = concat("0", stringLengthStr);
     }
+    pritnf("Sending directory listing to client\n");
+    
+    //TODO MOVE WRITE INTO A FUNCTION
     //sends length of string to come
     write(newsockfd, stringLengthStr, 10);
     //send file names

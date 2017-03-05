@@ -9,12 +9,14 @@ import sys					# Import system to read from command line
 s = socket.socket()         # Create a socket object
 
 #function to read from socket
-# def readFromServer(s):
-# 	fileLength = s.recv(2)
-# 	print "the file length is: " + fileLength
-# 	fileLength = int(fileLength)
-# 	fileName = s.recv(fileLength)
-# 	print fileName
+def readFromServer(s):
+	fileLength = s.recv(10)
+	print "the file length is: " + fileLength
+	fileLength = int(fileLength)
+	stringFromServer = s.recv(fileLength)
+	print stringFromServer
+	return
+
 
 # check hostname and portnumber from command line
 if( len(sys.argv) < 4):
@@ -28,14 +30,13 @@ port = int(sys.argv[2])
 # connect to server
 s.connect((server, port))
 print s.recv(17)
-#if is listing files
 
-#readFromServer(s)
-fileLength = s.recv(10)
-print "the file length is: " + fileLength
-fileLength = int(fileLength)
-stringFromServer = s.recv(fileLength)
-print stringFromServer
+#if is listing files
+if (sys.argv[3] == '-l'):
+	readFromServer(s)
+if (sys.argv[3] == '-g'):
+	print "here is where getting the file will go"
+
 
 # if is getting files
 

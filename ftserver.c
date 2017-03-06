@@ -1,8 +1,9 @@
-/* A simple server in the internet domain using TCP
-   The port number is passed as an argument */
-/* C server code inspired by http://www.linuxhowtos.org/C_C++/socket.htm
-/* function to read in dir http://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program*/
-/* function to concatinate strings from http://stackoverflow.com/questions/8465006/how-to-concatenate-2-strings-in-c*/
+/* Sarah Cawley 3/12/2017, Intro to computer networks
+ * Program 2 "Design and implement a simple file transfer system"
+ * C server code inspired by http://www.linuxhowtos.org/C_C++/socket.htm
+ * function to read in dir http://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
+ * function to concatinate strings from http://stackoverflow.com/questions/8465006/how-to-concatenate-2-strings-in-c
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,8 +36,7 @@ char * intToString(int n, char * string){
 */
 char* concat(const char *s1, const char *s2)
 {
-    char *result = malloc(strlen(s1)+strlen(s2)+1);//+1 for the zero-terminator
-    //in real code you would check for errors in malloc here
+    char *result = malloc(strlen(s1)+strlen(s2)+1);
     strcpy(result, s1);
     strcat(result, s2);
     return result;
@@ -50,6 +50,7 @@ int readOptionFromClient(int sockfd){
     char option[3];
     int n;
 
+    bzero(option, 3);
     n = read(sockfd,option, 2);
     if (n < 0) 
          error("ERROR reading from socket");
@@ -83,6 +84,34 @@ char * readFileName(int sockfd, char * fileName){
     return fileName;
 }
 
+/* verifies file is in dir
+ * takes file name
+ * returns 1 if verified, 2 if un verified
+*/
+int verifyFileName(char * fileName){
+    int verified = 0;
+    DIR           *d;
+    struct dirent *dir;   
+    d = opendir(".");
+    if (d)
+    {
+        while ((dir = readdir(d)) != NULL) {
+            if (dir->d_type == DT_REG){
+                //check file name
+                if(strcmp(fileName, dir->d_name) == 0){
+                    printf("The file has a match");
+                    return 1;
+                }
+                
+            }
+        }
+        closedir(d);
+        printf("%s is not a valid file name\n", fileName);
+    }
+    return 2;
+
+}
+
 /* write to socket */
 
 /*read from socket*/
@@ -100,7 +129,7 @@ char * createFileNameString(char * fileStr){
     d = opendir(".");
     if (d)
     {
-        //get number of files
+        //get files
         while ((dir = readdir(d)) != NULL) {
             if (dir->d_type == DT_REG){
                 //concat strings together
@@ -123,7 +152,7 @@ int main(int argc, char *argv[])
     socklen_t clilen;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
-    int n, i;
+    int n, i, verified;
     char * stringToSend; //string to sent to client
     char * fileName; //filename from client
     int option = 0; //if -l or -g
@@ -168,8 +197,8 @@ int main(int argc, char *argv[])
 
     n = write(newsockfd,"Server Connected\n",17);
     if (n < 0) error("ERROR writing to socket");
-
-    printf("I am going to read the info from the client now\n");
+    
+    //get option from client (-l or -g)
     option = readOptionFromClient(newsockfd);
 
     //if listing files
@@ -194,10 +223,9 @@ int main(int argc, char *argv[])
     else if( option == 2){
         //read in file name
         fileName = readFileName(newsockfd, fileName);
-        //verify file name
-
+        //verify file name 1 verfied, 2 no match
+        verified = verifyFileName(fileName);
         //send file
-
     }
 
     return 0; 

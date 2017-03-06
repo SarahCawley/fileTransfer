@@ -1,5 +1,7 @@
-#!/usr/bin/python           # This is client.py file
+#!/usr/bin/python           
 
+# Sarah Cawley 3/12/2017, Intro to computer networks
+# Program 2 "Design and implement a simple file transfer system"
 # python client architecture borrowed from https://www.tutorialspoint.com/python/python_networking.htm
 
 

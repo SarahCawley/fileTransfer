@@ -9,12 +9,18 @@ import sys					# Import system to read from command line
 s = socket.socket()         # Create a socket object
 
 #function to read from socket
-def readFromServer(s):
+# if option is 1 print to screen
+# if option is 2 save to file
+def readFromServer(s, option):
 	fileLength = s.recv(10)
-	print "the file length is: " + fileLength
+	#print "the file length is: " + fileLength
 	fileLength = int(fileLength)
 	stringFromServer = s.recv(fileLength)
 	print stringFromServer
+	return
+
+def sendOptionToServer(option):
+	s.send(option)
 	return
 
 
@@ -33,12 +39,19 @@ print s.recv(17)
 
 #if is listing files
 if (sys.argv[3] == '-l'):
-	readFromServer(s)
-if (sys.argv[3] == '-g'):
-	print "here is where getting the file will go"
-
+	sendOptionToServer('-l')
+	readFromServer(s, 1)
 
 # if is getting files
+elif (sys.argv[3] == '-g'):
+	sendOptionToServer('-g', 2)
+
+
+# wrong option
+else:
+	print argv[3] + " is not a valid option"
+
+
 
 
 s.close                     # Close the socket when done

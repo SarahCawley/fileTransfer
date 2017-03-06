@@ -19,6 +19,10 @@ void error(const char *msg)
     exit(1);
 }
 
+/* Turns and int into a string
+ * takes an int an an array to save the stringafied int into
+ * returns the int as a string
+*/
 char * intToString(int n, char * string){
     char *result = malloc(n);
     sprintf(result, "%d", n);
@@ -36,6 +40,34 @@ char* concat(const char *s1, const char *s2)
     strcpy(result, s1);
     strcat(result, s2);
     return result;
+}
+
+/* reads in option from client (-l to list files in dir, -g to transer file)
+ * takes the socket number
+ * returns 1 if -l and 2 if -g
+*/
+int readOptionFromClient(int sockfd){
+    char option[3];
+    int n;
+
+    printf("In readOptionFromClient\n");
+    n = read(sockfd,option, 2);
+    if (n < 0) 
+         error("ERROR reading from socket");
+
+    printf("the option chosen was: %s", option);
+
+    if(strcmp(option, "-l")  == 0){
+        return 1;
+    }
+    else if(strcmp(option, "-g" ) == 0){
+        return 2;
+    }
+    else{
+        printf("%s is not a valid option. Please try again", option);
+        return 3;
+    }
+
 }
 
 /* write to socket */
@@ -80,6 +112,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in serv_addr, cli_addr;
     int n, i;
     char * stringToSend;
+    int option = 0; //if -l or -g
     
     
 
@@ -122,20 +155,36 @@ int main(int argc, char *argv[])
     n = write(newsockfd,"Server Connected\n",17);
     if (n < 0) error("ERROR writing to socket");
 
+    printf("I am going to read the info from the client now\n");
+    option = readOptionFromClient(newsockfd);
 
-
-
-    //Sends file names
-    fileStr = createFileNameString(fileStr);
-    stringLengthInt = strlen(fileStr);
-    stringLengthStr = intToString(stringLengthInt, stringLengthStr);
-    while( strlen(stringLengthStr) < 10){
-        stringLengthStr = concat("0", stringLengthStr);
+    //if listing files
+    if(option == 1){
+        //Sends file names
+        fileStr = createFileNameString(fileStr);
+        stringLengthInt = strlen(fileStr);
+        stringLengthStr = intToString(stringLengthInt, stringLengthStr);
+        while( strlen(stringLengthStr) < 10){
+            stringLengthStr = concat("0", stringLengthStr);
+        }
+        printf("Sending directory listing to client\n");
+    
+        //TODO MOVE WRITE INTO A FUNCTION
+        //sends length of string to come
+        write(newsockfd, stringLengthStr, 10);
+        //send file names
+        write(newsockfd, fileStr ,stringLengthInt);
     }
-    //sends length of string to come
-    write(newsockfd, stringLengthStr, 10);
-    //send file names
-    write(newsockfd, fileStr ,stringLengthInt);
+
+    //send file
+    else if( option == 2){
+        //read in file name
+
+        //verify file name
+
+        //send file
+
+    }
 
     return 0; 
 }

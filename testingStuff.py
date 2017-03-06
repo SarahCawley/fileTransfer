@@ -44,7 +44,10 @@ if (sys.argv[3] == '-l'):
 
 # if is getting files
 elif (sys.argv[3] == '-g'):
-	sendOptionToServer('-g', 2)
+	# get file name from user
+	sendOptionToServer('-g')
+	fileName = raw_input("Please enter the name of the file you wish to download ")
+	s.send(fileName)
 
 
 # wrong option

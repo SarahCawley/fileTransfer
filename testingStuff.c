@@ -50,12 +50,9 @@ int readOptionFromClient(int sockfd){
     char option[3];
     int n;
 
-    printf("In readOptionFromClient\n");
     n = read(sockfd,option, 2);
     if (n < 0) 
          error("ERROR reading from socket");
-
-    printf("the option chosen was: %s", option);
 
     if(strcmp(option, "-l")  == 0){
         return 1;
@@ -64,10 +61,26 @@ int readOptionFromClient(int sockfd){
         return 2;
     }
     else{
-        printf("%s is not a valid option. Please try again", option);
+        printf("\n%s is not a valid option. Please try again\n", option);
         return 3;
     }
+}
 
+/* reads file name from socket
+ * takes the socket number
+ * returns the string of the filename
+*/
+char * readFileName(int sockfd, char * fileName){
+    char buffer[50];
+    int n;
+
+    bzero(buffer,50);
+    n = read(sockfd,buffer, 50);
+    if (n < 0) 
+         error("ERROR reading from socket");
+    fileName = malloc(strlen(buffer) +1);
+    strcpy(fileName, buffer);
+    return fileName;
 }
 
 /* write to socket */
@@ -111,7 +124,8 @@ int main(int argc, char *argv[])
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
     int n, i;
-    char * stringToSend;
+    char * stringToSend; //string to sent to client
+    char * fileName; //filename from client
     int option = 0; //if -l or -g
     
     
@@ -179,7 +193,7 @@ int main(int argc, char *argv[])
     //send file
     else if( option == 2){
         //read in file name
-
+        fileName = readFileName(newsockfd, fileName);
         //verify file name
 
         //send file

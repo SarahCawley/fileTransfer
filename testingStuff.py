@@ -50,6 +50,15 @@ elif (sys.argv[3] == '-g'):
 	sendOptionToServer('-g')
 	fileName = raw_input("Please enter the name of the file you wish to download ")
 	s.send(fileName)
+	# get verification of valid name
+	valid = s.recv(1)
+	valid = int(valid)
+
+	if valid == 1:
+		print "valid name"
+		# do all the things that happen with a valid name
+	else:
+		print fileName + " is not a valid file name. Please try again"
 
 
 # wrong option

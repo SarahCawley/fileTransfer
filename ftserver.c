@@ -88,8 +88,9 @@ char * readFileName(int sockfd, char * fileName){
  * takes file name
  * returns 1 if verified, 2 if un verified
 */
-int verifyFileName(char * fileName){
+int verifyFileName(int sockfd, char * fileName){
     int verified = 0;
+    int n;
     DIR           *d;
     struct dirent *dir;   
     d = opendir(".");
@@ -99,7 +100,9 @@ int verifyFileName(char * fileName){
             if (dir->d_type == DT_REG){
                 //check file name
                 if(strcmp(fileName, dir->d_name) == 0){
-                    printf("The file has a match");
+                    printf("The file has a match\n");
+                    n = write(sockfd,"1",1);
+                    if (n < 0) error("ERROR writing to socket");
                     return 1;
                 }
                 
@@ -107,6 +110,8 @@ int verifyFileName(char * fileName){
         }
         closedir(d);
         printf("%s is not a valid file name\n", fileName);
+        n = write(sockfd,"0",1);
+        if (n < 0) error("ERROR writing to socket");
     }
     return 2;
 
@@ -185,47 +190,49 @@ int main(int argc, char *argv[])
         sizeof(serv_addr)) < 0) 
         error("ERROR on binding");
 
+    while(1){
 
-    //listen for the new connection and connect
-    listen(sockfd,5);
-   
-    clilen = sizeof(cli_addr);
-    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-    if (newsockfd < 0) 
-        error("ERROR on accept");
-    printf("Client connected\n");
+        //listen for the new connection and connect
+        listen(sockfd,5);
+       
+        clilen = sizeof(cli_addr);
+        newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+        if (newsockfd < 0) 
+            error("ERROR on accept");
+        printf("Client connected\n");
 
-    n = write(newsockfd,"Server Connected\n",17);
-    if (n < 0) error("ERROR writing to socket");
-    
-    //get option from client (-l or -g)
-    option = readOptionFromClient(newsockfd);
+        n = write(newsockfd,"Server Connected\n",17);
+        if (n < 0) error("ERROR writing to socket");
+        
+        //get option from client (-l or -g)
+        option = readOptionFromClient(newsockfd);
 
-    //if listing files
-    if(option == 1){
-        //Sends file names
-        fileStr = createFileNameString(fileStr);
-        stringLengthInt = strlen(fileStr);
-        stringLengthStr = intToString(stringLengthInt, stringLengthStr);
-        while( strlen(stringLengthStr) < 10){
-            stringLengthStr = concat("0", stringLengthStr);
+        //if listing files
+        if(option == 1){
+            //Sends file names
+            fileStr = createFileNameString(fileStr);
+            stringLengthInt = strlen(fileStr);
+            stringLengthStr = intToString(stringLengthInt, stringLengthStr);
+            while( strlen(stringLengthStr) < 10){
+                stringLengthStr = concat("0", stringLengthStr);
+            }
+            printf("Sending directory listing to client\n");
+        
+            //TODO MOVE WRITE INTO A FUNCTION
+            //sends length of string to come
+            write(newsockfd, stringLengthStr, 10);
+            //send file names
+            write(newsockfd, fileStr ,stringLengthInt);
         }
-        printf("Sending directory listing to client\n");
-    
-        //TODO MOVE WRITE INTO A FUNCTION
-        //sends length of string to come
-        write(newsockfd, stringLengthStr, 10);
-        //send file names
-        write(newsockfd, fileStr ,stringLengthInt);
-    }
 
-    //send file
-    else if( option == 2){
-        //read in file name
-        fileName = readFileName(newsockfd, fileName);
-        //verify file name 1 verfied, 2 no match
-        verified = verifyFileName(fileName);
         //send file
+        else if( option == 2){
+            //read in file name
+            fileName = readFileName(newsockfd, fileName);
+            //verify file name 1 verfied, 2 no match
+            verified = verifyFileName(newsockfd, fileName);
+            //send file
+        }
     }
 
     return 0; 

@@ -3,6 +3,7 @@
  * C server code inspired by http://www.linuxhowtos.org/C_C++/socket.htm
  * function to read in dir http://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
  * function to concatinate strings from http://stackoverflow.com/questions/8465006/how-to-concatenate-2-strings-in-c
+ * function to read the file and send in the socket http://stackoverflow.com/questions/2014033/send-and-receive-a-file-in-socket-programming-in-linux-with-c-c-gcc-g
 */
 
 #include <stdio.h>
@@ -13,6 +14,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <dirent.h> 
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <math.h>
 
 void error(const char *msg)
 {
@@ -89,35 +93,83 @@ char * readFileName(int sockfd, char * fileName){
  * returns 1 if verified, 2 if un verified
 */
 int verifyFileName(int sockfd, char * fileName){
-    int verified = 0;
-    int n;
-    DIR           *d;
-    struct dirent *dir;   
-    d = opendir(".");
-    if (d)
-    {
-        while ((dir = readdir(d)) != NULL) {
-            if (dir->d_type == DT_REG){
-                //check file name
-                if(strcmp(fileName, dir->d_name) == 0){
-                    printf("The file has a match\n");
-                    n = write(sockfd,"1",1);
-                    if (n < 0) error("ERROR writing to socket");
-                    return 1;
-                }
-                
-            }
-        }
-        closedir(d);
-        printf("%s is not a valid file name\n", fileName);
-        n = write(sockfd,"0",1);
-        if (n < 0) error("ERROR writing to socket");
-    }
-    return 2;
+    int fp = 0; //file pointer to file
 
+
+    fp = open(fileName, O_RDONLY);
+    if (fp < 1) /*cant open file*/{
+        printf("can't find file %s\n", fileName);
+        write(sockfd, "0", 1);
+        return 0;
+    }
+    else {
+        printf("found and send file %s\n", fileName);
+        write(sockfd, "1", 1);
+        return fp;
+    }
 }
 
-/* write to socket */
+void sendFile(char * input_file, int output_socket, int fp){
+    char buffer[512];
+    int bytes_read ; 
+    char * bytes_read_str;
+
+    while (1) {
+        // Read data into buffer.  We may not have enough to fill up buffer, so we
+        // store how many bytes were actually read in bytes_read.
+        bytes_read = read( (int)fp, buffer, sizeof(buffer));
+        if (bytes_read == 0) // We're done reading from the file
+            break;
+
+        if (bytes_read < 0) {
+            // handle errors
+        }
+
+        // You need a loop for the write, because not all of the data may be written
+        // in one call; write will return how many bytes were written. p keeps
+        // track of where in the buffer we are, while we decrement bytes_read
+        // to keep track of how many bytes are left to write.
+        void *p = buffer;
+        while (bytes_read > 0) {
+            // bytes_read_str =  intToString(3, bytes_read_str);
+            // write(output_socket, bytes_read_str, 3);
+            int bytes_written = write(output_socket, p, bytes_read);
+
+            if (bytes_written <= 0) {
+                // handle errors
+            }
+            bytes_read -= bytes_written;
+            p += bytes_written;
+        }
+    }
+}
+
+/* write to socket 
+ * takes the socket number, a string to send, and the length of the string
+
+*/
+// void writeToSocket(int socketNumber, char * stringToSend){
+//     int n, x, length;
+//     char * lengthToString;
+
+//     //get how many digits are in the length
+//     length = strlen(stringToSend);
+//     if (length == 0) returlength 1;
+//     x = floor (log10 (abs (length))) + 1;
+
+//     lengthToString = intToString(length, lengthToString);
+//     n = write(socketNumber, lengthToString, x);
+//     if (n < 0){
+//         printf("There was a problem sending to the socket. Please try again\n");
+//         exit();
+//     }
+
+//     n = write(socketNumber, stringToSend, length)
+//     if (n < 0){
+//         printf("There was a problem sending to the socket. Please try again\n");
+//         exit();
+//     }
+// }
 
 /*read from socket*/
 
@@ -157,10 +209,11 @@ int main(int argc, char *argv[])
     socklen_t clilen;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
-    int n, i, verified;
+    int n, i;
     char * stringToSend; //string to sent to client
     char * fileName; //filename from client
     int option = 0; //if -l or -g
+    int fp;
     
     
 
@@ -229,9 +282,11 @@ int main(int argc, char *argv[])
         else if( option == 2){
             //read in file name
             fileName = readFileName(newsockfd, fileName);
-            //verify file name 1 verfied, 2 no match
-            verified = verifyFileName(newsockfd, fileName);
+            //verify file name, 0 if unable to open file, file descriptor if openable
+            fp = verifyFileName(newsockfd, fileName);
+            printf("the file descriptor for this file is %i\n", fp);
             //send file
+            sendFile(fileName, newsockfd, fp);
         }
     }
 

@@ -56,6 +56,8 @@ elif (sys.argv[3] == '-g'):
 
 	if valid == 1:
 		print "valid name"
+		shortfile = s.recv(109)
+		print "this is the short file " + shortfile
 		# do all the things that happen with a valid name
 	else:
 		print fileName + " is not a valid file name. Please try again"

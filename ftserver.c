@@ -119,7 +119,7 @@ int verifyFileName(int sockfd, char * fileName){
         return 0;
     }
     else {
-        printf("found and send file %s\n", fileName);
+        printf("found %s\n", fileName);
         write(sockfd, "1", 1);
         return fp;
     }
@@ -219,7 +219,7 @@ char * createFileNameString(char * fileStr){
     return fileStr;
 }
 
-int createSocket( char * hostname, char * message, int portno){
+int createSocket(int portno){
 
     int newsockfd, sockfd;
     socklen_t clilen;
@@ -239,15 +239,27 @@ int createSocket( char * hostname, char * message, int portno){
     if (bind(sockfd, (struct sockaddr *) &serv_addr,
         sizeof(serv_addr)) < 0) 
         error("ERROR on binding"); 
-    printf("%s  %s %i \n", hostname, message, portno);
-    listen(sockfd,5);
    
+    // listen(sockfd,5);
+   
+    // clilen = sizeof(cli_addr);
+    // newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+    // if (newsockfd < 0) 
+    //     error("ERROR on accept");
+    // printf("Client connected on port number %i\n", portno);
+
+    return sockfd;
+}
+
+int listenSocket(int sockfd, int portno){
+    int newsockfd;
+    socklen_t clilen;
+    struct sockaddr_in serv_addr, cli_addr;
+    listen(sockfd,5);
     clilen = sizeof(cli_addr);
     newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
     if (newsockfd < 0) 
         error("ERROR on accept");
-    printf("Client connected on port number %i\n", portno);
-
     return newsockfd;
 }
 
@@ -263,8 +275,6 @@ int getDataPort(int sockfd){
          error("ERROR reading from socket");
 
     dataSockFd = atoi(portNoStr);
-    printf("the data port number string is %s, int is %i\n ", portNoStr, dataSockFd);
-
     return dataSockFd;
 }
 
@@ -273,7 +283,7 @@ int main(int argc, char *argv[])
     char * fileStr = "\nDirectory Listing From Server:\n"; //holds string with all files
     int stringLengthInt = 0; //to store length of string as int
     char * stringLengthStr; //to store length of string as char *
-    int sockfd, commandSockFd, dataSockFd, dataSockFdportno;
+    int sockfd, newsockfd, commandSockFd, dataSockFd, dataSockFdportno;
     //socklen_t clilen;
     char buffer[256];
     //struct sockaddr_in serv_addr, cli_addr;
@@ -284,60 +294,73 @@ int main(int argc, char *argv[])
     int fp;
     char * message;
     int portno;
-    
-    
 
-    /*print hostname hostname*/
-    char hostname[128];
-    gethostname(hostname, sizeof hostname);
-    
-
-    //check port number provided
+    //check port number was provided
     if (argc < 2) {
         fprintf(stderr,"ERROR, no port provided\n");
         exit(1);
     }
 
+    /*get port number*/
     portno = atoi(argv[1]);
-    commandSockFd = createSocket(hostname, " open on command port ", portno);
-    
+    /*get hostname*/
+    char hostname[128];
+    gethostname(hostname, sizeof hostname);
+    /*create connection, print hostname and port to screen*/
+    sockfd = createSocket(portno);
+    printf("%s  open on port %i\n", hostname,  portno);
 
-    n = write(commandSockFd,"Comm Server Connected\n",22);
-    if (n < 0) error("ERROR writing to socket");
-   
-    //get option from client (-l or -g)
-    option = readOptionFromClient(commandSockFd);
-    
-    //if listing files
-    if(option == 1){
-        //get data port
-        dataSockFdportno = getDataPort(commandSockFd);
-        //create data connection
-        dataSockFd = createSocket(hostname, " open on data port ", dataSockFdportno);
-        //Sends file names
-        fileStr = createFileNameString(fileStr);
-        writeToSocket(dataSockFd, fileStr);
-        printf("Directory listing sent to client\n");
-    }
+    while(1){
+        //listen for connection
+        printf("listening on command port %i\n", portno);
+        commandSockFd = listenSocket(sockfd, portno);
+        printf("Client command connection open on port %i\n", portno);
+        n = write(commandSockFd,"Command Server Connected\n",26);
+        if (n < 0) error("ERROR writing to socket");
+       
+        //get option from client (-l or -g)
+        option = readOptionFromClient(commandSockFd);
+        
+        //if listing files
+        if(option == 1){
+            //get data port
+            dataSockFdportno = getDataPort(commandSockFd);
+            //create data connection
+            newsockfd = createSocket(dataSockFdportno);
+            printf("data connection open on port %i\n", dataSockFdportno);
+            dataSockFd = listenSocket(newsockfd, dataSockFdportno);
+            //Sends file names
+            fileStr = createFileNameString(fileStr);
+            writeToSocket(dataSockFd, fileStr);
+            printf("File directory sent to client\n");
+            close(dataSockFd);
+            printf("data connection closed on port %i\n", dataSockFdportno);
+        }
 
-    //send file
-    else if( option == 2){
-        //read in file name
-        printf("read file name\n"); 
-        fileName = readFileName(commandSockFd, fileName);
-        //verify file name, 0 if unable to open file, file descriptor if openable
-        printf("verify name\n");
-        fp = verifyFileName(commandSockFd, fileName);
-
-        //get data port
-        dataSockFdportno = getDataPort(commandSockFd);
-        //create data connection
-        dataSockFd = createSocket(hostname, " open on data port ", dataSockFdportno);
         //send file
-        printf("send file in main\n");
-        sendFile(fileName, dataSockFd, fp);
-    }
-   // }
+        else if( option == 2){
+            //read in file name
+            fileName = readFileName(commandSockFd, fileName);
+            //verify file name, 0 if unable to open file, file descriptor if openable
+            fp = verifyFileName(commandSockFd, fileName);
 
+            //get data port
+            dataSockFdportno = getDataPort(commandSockFd);
+            //create data connection
+            newsockfd = createSocket(dataSockFdportno);
+            printf("data connection open on port %i\n", dataSockFdportno);
+            dataSockFd = listenSocket(newsockfd, dataSockFdportno);
+            //send file
+            printf("Sending file %s\n", fileName);
+            sendFile(fileName, dataSockFd, fp);
+            printf("Tansfer compete\n");
+            close(dataSockFd);
+            printf("data connection closed on port %i\n", dataSockFdportno);
+        }
+        printf("\n\n");
+    }
+
+    close(commandSockFd);
+    printf("command connection closed on port %i\n", portno);
     return 0; 
 }

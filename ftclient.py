@@ -8,8 +8,12 @@
 import socket               # Import socket module
 import sys					# Import system to read from command line
 import os.path				# checks files in the path
+import time
 
-
+#to handle error messages
+def alert(msg):
+    print >>sys.stderr, msg
+    sys.exit(1)
 
 #function to read from socket
 # returns the string read from the server
@@ -92,10 +96,11 @@ if( len(sys.argv) < 5):
 server = sys.argv[1]
 port = int(sys.argv[2])
 
-# connect to command server
-command = socket.socket()  
+print "connect to command server"
+command = socket.socket() 
 command.connect((server, port))
-print command.recv(22)
+print command.recv(26)
+
 
 
 #if is listing files
@@ -103,7 +108,6 @@ if (sys.argv[3] == '-l'):
 	if( len(sys.argv) < 5):
 		print "usage: python ftclient.py [server name] [command port number] [-l (list files)] [data transfer port]"
 		quit()
-	
 	sendOptionToServer('-l', command)
 	
 	dataPort = sys.argv[4]
@@ -112,8 +116,12 @@ if (sys.argv[3] == '-l'):
 	# create data connection
 	data  = socket.socket()
 	dataPort = int(dataPort)
+	# added a delay because sometimes it would try to connect before the server was ready
+	time.sleep(.25) 
 	data.connect((server, dataPort))
 
+	
+	print "connected to datport reading from server"
 	files, n = readFromServer(data)
 	print files
 	data.close
@@ -140,6 +148,7 @@ elif (sys.argv[3] == '-g'):
 		# create data connection
 		data  = socket.socket()
 		dataPort = int(dataPort)
+		time.sleep(.25)
 		data.connect((server, dataPort))
 
 
@@ -153,8 +162,6 @@ elif (sys.argv[3] == '-g'):
 # wrong option
 else:
 	print argv[3] + " is not a valid option"
-
-
 
 #close command socket
 command.close                     

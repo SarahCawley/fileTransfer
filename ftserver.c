@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <math.h>
 
+// for error messages
 void error(const char *msg)
 {
     perror(msg);
@@ -106,11 +107,10 @@ char * readFileName(int sockfd, char * fileName){
 
 /* verifies file is in dir
  * takes file name
- * returns 1 if verified, 2 if un verified
+ * returns file pointer if verified, 0 if un verified
 */
 int verifyFileName(int sockfd, char * fileName){
     int fp = 0; //file pointer to file
-
 
     fp = open(fileName, O_RDONLY);
     if (fp < 1) /*cant open file*/{
@@ -125,20 +125,26 @@ int verifyFileName(int sockfd, char * fileName){
     }
 }
 
+/* sends the file to the client
+ * reads from file, sends 512 bytes per stream
+ * takes the file name, socket, and file pointer
+ * Does not return anything
+*/
 void sendFile(char * input_file, int transferSocket, int fp){
     char buffer[512];
     int bytes_read;
     int i =1; 
     char * bytes_read_str;
     while (1) {
-        // Read data into buffer.  We may not have enough to fill up buffer, so we
-        // store how many bytes were actually read in bytes_read.
+        // Read data into buffer. store how many bytes were actually read in bytes_read.
         bytes_read = read( (int)fp, buffer, sizeof(buffer));
-        if (bytes_read == 0) // We're done reading from the file
+        // file emplty
+        if (bytes_read == 0) 
             break;
-
+        //if error reading
         if (bytes_read < 0) {
-            // handle errors
+            printf("error reading file\n");
+            return;
         }
 
         // writeToSocket will return how many bytes were written. p keeps
@@ -153,8 +159,10 @@ void sendFile(char * input_file, int transferSocket, int fp){
             write(transferSocket, bytes_read_str, 3);
             int bytes_written = write(transferSocket, p, bytes_read);
 
+            //if error writing
             if (bytes_written <= 0) {
-                // handle errors
+                printf("error writing to socket\n");
+                return;
             }
             bytes_read -= bytes_written;
             p += bytes_written;
@@ -219,38 +227,34 @@ char * createFileNameString(char * fileStr){
     return fileStr;
 }
 
+/* create new connection
+ * takes the port number
+ * returns socket fd
+*/
 int createSocket(int portno){
 
     int newsockfd, sockfd;
     socklen_t clilen;
     struct sockaddr_in serv_addr, cli_addr;
 
-
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) 
     error("ERROR opening socket");
     bzero((char *) &serv_addr, sizeof(serv_addr));
-
-
     
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(portno);
-    if (bind(sockfd, (struct sockaddr *) &serv_addr,
-        sizeof(serv_addr)) < 0) 
+    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
         error("ERROR on binding"); 
-   
-    // listen(sockfd,5);
-   
-    // clilen = sizeof(cli_addr);
-    // newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-    // if (newsockfd < 0) 
-    //     error("ERROR on accept");
-    // printf("Client connected on port number %i\n", portno);
 
     return sockfd;
 }
 
+/* listens for connection from client
+ * takes the socket fd and port number
+ * retuns the new socket fd
+*/
 int listenSocket(int sockfd, int portno){
     int newsockfd;
     socklen_t clilen;
@@ -263,13 +267,15 @@ int listenSocket(int sockfd, int portno){
     return newsockfd;
 }
 
+/* gets the port number for the data connection from the client
+ * takes the command socket fd
+ * returns the data port as an int
+*/
 int getDataPort(int sockfd){
     int dataSockFd, n;
     char * portNoStr = malloc(10);
     
-
     bzero(portNoStr, 10);
-
     n = read(sockfd, portNoStr, 10);
     if (n < 0) 
          error("ERROR reading from socket");
@@ -279,21 +285,21 @@ int getDataPort(int sockfd){
 }
 
 int main(int argc, char *argv[])
-{
-    char * fileStr = "\nDirectory Listing From Server:\n"; //holds string with all files
-    int stringLengthInt = 0; //to store length of string as int
-    char * stringLengthStr; //to store length of string as char *
-    int sockfd, newsockfd, commandSockFd, dataSockFd, dataSockFdportno;
-    //socklen_t clilen;
+{   
+    //holds string with all files
+    char * fileStr = "\nDirectory Listing From Server:\n"; 
+    //to store length of string as char *
+    char * stringLengthStr;
+    //string to sent to client
+    char * stringToSend; 
+    //filename from client 
+    char * fileName; 
     char buffer[256];
-    //struct sockaddr_in serv_addr, cli_addr;
-    int n, i;
-    char * stringToSend; //string to sent to client
-    char * fileName; //filename from client
-    int option = 0; //if -l or -g
-    int fp;
-    char * message;
-    int portno;
+    //to store length of string as int
+    int stringLengthInt = 0; 
+    //if -l or -g
+    int option = 0;
+    int sockfd, newsockfd, commandSockFd, dataSockFd, dataSockFdportno, fp, portno, n, i;
 
     //check port number was provided
     if (argc < 2) {
@@ -343,19 +349,20 @@ int main(int argc, char *argv[])
             fileName = readFileName(commandSockFd, fileName);
             //verify file name, 0 if unable to open file, file descriptor if openable
             fp = verifyFileName(commandSockFd, fileName);
-
-            //get data port
-            dataSockFdportno = getDataPort(commandSockFd);
-            //create data connection
-            newsockfd = createSocket(dataSockFdportno);
-            printf("data connection open on port %i\n", dataSockFdportno);
-            dataSockFd = listenSocket(newsockfd, dataSockFdportno);
-            //send file
-            printf("Sending file %s\n", fileName);
-            sendFile(fileName, dataSockFd, fp);
-            printf("Tansfer compete\n");
-            close(dataSockFd);
-            printf("data connection closed on port %i\n", dataSockFdportno);
+            if (fp != 0){  
+                //get data port
+                dataSockFdportno = getDataPort(commandSockFd);
+                //create data connection
+                newsockfd = createSocket(dataSockFdportno);
+                printf("data connection open on port %i\n", dataSockFdportno);
+                dataSockFd = listenSocket(newsockfd, dataSockFdportno);
+                //send file
+                printf("Sending file %s\n", fileName);
+                sendFile(fileName, dataSockFd, fp);
+                printf("Tansfer compete\n");
+                close(dataSockFd);
+                printf("data connection closed on port %i\n", dataSockFdportno);
+            }
         }
         printf("\n\n");
     }

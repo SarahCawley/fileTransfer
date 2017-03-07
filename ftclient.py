@@ -37,10 +37,15 @@ def readFromServer(sockfd):
 
 	return (stringFromServer, more)
 
+# sends -l or -g to server
+# takes the option and the socket information
 def sendOptionToServer(option, sockfd):
 	sockfd.send(option)
 	return
 
+# reads from server and saves data to an external file
+# checks if filename already exists, if so creates copy-filename.txt
+# takes the file name and socket information
 def writeToFile(fileName, sockfd):
 	f = open(path,"a+")
 	i = 1
@@ -51,9 +56,9 @@ def writeToFile(fileName, sockfd):
 		if fileContents == "Nothing to print":
 			return
 
+		#append to file until add data transfered
 		else:
 			f.write(fileContents)
-
 			i += 1
 			if more == 0:
 				print "File transfer complete"
@@ -78,6 +83,8 @@ def isFileOnClient(fileName):
 	else:
 		return path
 
+# creates a new connection for data transfer
+# takes the data port number
 def createDataSocket(dataPort):
 	#create data socket
 	data  = socket.socket()
@@ -96,7 +103,6 @@ if( len(sys.argv) < 5):
 server = sys.argv[1]
 port = int(sys.argv[2])
 
-print "connect to command server"
 command = socket.socket() 
 command.connect((server, port))
 print command.recv(26)

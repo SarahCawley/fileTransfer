@@ -17,7 +17,9 @@ def readFromServer(s):
 	more = 0 # there is no more, 1 more to print
 	#get length of file
 	fileLength = s.recv(3)
+	#print "file length " + fileLength
 	fileLength = int(fileLength)
+
 
 	#see if there is more coming, max buffer size is 512
 	if fileLength > 511:
@@ -37,6 +39,7 @@ def sendOptionToServer(option):
 
 def writeToFile(fileName, s):
 	f = open(path,"a+")
+	i = 1
 
 	while True:
 		fileContents, more = readFromServer(s)
@@ -46,8 +49,8 @@ def writeToFile(fileName, s):
 
 		else:
 			f.write(fileContents)
-			print "writing to file more is "
-			print more
+
+			i += 1
 			if more == 0:
 				f.close 
 				return
@@ -87,7 +90,7 @@ print s.recv(17)
 #if is listing files
 if (sys.argv[3] == '-l'):
 	sendOptionToServer('-l')
-	files = readFromServer(s)
+	files, n = readFromServer(s)
 	print files
 
 # if is getting files

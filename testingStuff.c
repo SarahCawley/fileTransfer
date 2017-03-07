@@ -46,6 +46,22 @@ char* concat(const char *s1, const char *s2)
     return result;
 }
 
+/* creats a string from and integer of strlen. To be sent to size buffer correctly
+ * takes a string to find length of
+ * returns a stringafied int that is 3 digits long
+*/
+char * getLengthOfStringAsString(char * string){
+    int stringLengthInt; //length of string in int
+    char * stringLengthStr; //stringafiled int, for instance "253"
+    stringLengthInt = strlen(string);
+    stringLengthStr = intToString(stringLengthInt, stringLengthStr);
+    //zero pads the string to be 3 digits long
+    while( strlen(stringLengthStr) < 3){
+        stringLengthStr = concat("0", stringLengthStr);
+    }
+    return stringLengthStr;
+}
+
 /* reads in option from client (-l to list files in dir, -g to transer file)
  * takes the socket number
  * returns 1 if -l and 2 if -g
@@ -111,9 +127,10 @@ int verifyFileName(int sockfd, char * fileName){
 
 void sendFile(char * input_file, int output_socket, int fp){
     char buffer[512];
-    int bytes_read ; 
+    int bytes_read;
+    int i =1; 
     char * bytes_read_str;
-
+printf("in send file outside of while loop\n");
     while (1) {
         // Read data into buffer.  We may not have enough to fill up buffer, so we
         // store how many bytes were actually read in bytes_read.
@@ -125,14 +142,16 @@ void sendFile(char * input_file, int output_socket, int fp){
             // handle errors
         }
 
-        // You need a loop for the write, because not all of the data may be written
-        // in one call; write will return how many bytes were written. p keeps
+        // writeToSocket will return how many bytes were written. p keeps
         // track of where in the buffer we are, while we decrement bytes_read
         // to keep track of how many bytes are left to write.
         void *p = buffer;
         while (bytes_read > 0) {
-            bytes_read_str =  intToString(3, bytes_read_str);
-            write(output_socket, "109", 3);
+            bytes_read_str =  intToString(bytes_read, bytes_read_str);
+            while( strlen(bytes_read_str) < 3){
+                bytes_read_str = concat("0", bytes_read_str);
+            }
+            write(output_socket, bytes_read_str, 3);
             int bytes_written = write(output_socket, p, bytes_read);
 
             if (bytes_written <= 0) {
@@ -144,32 +163,36 @@ void sendFile(char * input_file, int output_socket, int fp){
     }
 }
 
-/* write to socket 
- * takes the socket number, a string to send, and the length of the string
-
+/* sends information to client
+ * takes the socket int and the string to send
+ * gets lenth of string
+ * Sends on message to client with length of string
+ * sends second message to client with string
 */
-// void writeToSocket(int socketNumber, char * stringToSend){
-//     int n, x, length;
-//     char * lengthToString;
+int writeToSocket(int sockfd, char * string){
+    int stringLengthInt = 0;
+    char * stringLengthStr;
+    int n;
 
-//     //get how many digits are in the length
-//     length = strlen(stringToSend);
-//     if (length == 0) returlength 1;
-//     x = floor (log10 (abs (length))) + 1;
-
-//     lengthToString = intToString(length, lengthToString);
-//     n = write(socketNumber, lengthToString, x);
-//     if (n < 0){
-//         printf("There was a problem sending to the socket. Please try again\n");
-//         exit();
-//     }
-
-//     n = write(socketNumber, stringToSend, length)
-//     if (n < 0){
-//         printf("There was a problem sending to the socket. Please try again\n");
-//         exit();
-//     }
-// }
+    //get int length of string
+    stringLengthInt = strlen(string);
+    //get str length of string
+    stringLengthStr = getLengthOfStringAsString(string);
+    //write length to socket
+// printf("%s", stringLengthStr); 
+    n = write(sockfd, stringLengthStr, 3);
+    if (n < 0) {
+        printf("error writing to socket\n");
+        return n;
+    }
+    //write string to socket
+    n = write(sockfd, string , stringLengthInt );
+    if (n < 0 ){
+        printf("error writing to socket\n");
+        return n;
+    }
+    return n;
+}
 
 /*read from socket*/
 
@@ -264,28 +287,20 @@ int main(int argc, char *argv[])
         if(option == 1){
             //Sends file names
             fileStr = createFileNameString(fileStr);
-            stringLengthInt = strlen(fileStr);
-            stringLengthStr = intToString(stringLengthInt, stringLengthStr);
-            while( strlen(stringLengthStr) < 3){
-                stringLengthStr = concat("0", stringLengthStr);
-            }
-            printf("Sending directory listing to client\n");
-        
-            //TODO MOVE WRITE INTO A FUNCTION
-            //sends length of string to come
-            write(newsockfd, stringLengthStr, 3);
-            //send file names
-            write(newsockfd, fileStr ,stringLengthInt);
+            writeToSocket(newsockfd, fileStr);
+            printf("Directory listing sent to client");
         }
 
         //send file
         else if( option == 2){
             //read in file name
+            printf("read file name\n"); 
             fileName = readFileName(newsockfd, fileName);
             //verify file name, 0 if unable to open file, file descriptor if openable
+            printf("verify name\n");
             fp = verifyFileName(newsockfd, fileName);
-            printf("the file descriptor for this file is %i\n", fp);
             //send file
+            printf("send file in main\n");
             sendFile(fileName, newsockfd, fp);
         }
     }

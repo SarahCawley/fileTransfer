@@ -239,7 +239,7 @@ int createSocket( char * hostname, char * message, int portno){
     if (bind(sockfd, (struct sockaddr *) &serv_addr,
         sizeof(serv_addr)) < 0) 
         error("ERROR on binding"); 
-printf("%s  %s %i \n", hostname, message, portno);
+    printf("%s  %s %i \n", hostname, message, portno);
     listen(sockfd,5);
    
     clilen = sizeof(cli_addr);
@@ -251,12 +251,28 @@ printf("%s  %s %i \n", hostname, message, portno);
     return newsockfd;
 }
 
+int getDataPort(int sockfd){
+    int dataSockFd, n;
+    char * portNoStr[8];
+
+    bzero(portNoStr);
+
+    n = read(sockfd, portNoStr, 8);
+    if (n < 0) 
+         error("ERROR reading from socket");
+
+    dataSockFd = atoi(portNoStr);
+    printf("the data port number string is %s, int is %i\n ", portNoStr, dataSockFd);
+
+    return dataSockFd;
+}
+
 int main(int argc, char *argv[])
 {
     char * fileStr = "\nDirectory Listing From Server:\n"; //holds string with all files
     int stringLengthInt = 0; //to store length of string as int
     char * stringLengthStr; //to store length of string as char *
-    int sockfd, commandSockFd, portno;
+    int sockfd, commandSockFd, dataSockFdportno;
     //socklen_t clilen;
     char buffer[256];
     //struct sockaddr_in serv_addr, cli_addr;
@@ -282,34 +298,37 @@ int main(int argc, char *argv[])
 
     portno = atoi(argv[1]);
     commandSockFd = createSocket(hostname, " open on command port ", portno);
-    // printf("%s open on command port %i \n", hostname, portno);
+    
 
     n = write(commandSockFd,"Server Connected\n",17);
     if (n < 0) error("ERROR writing to socket");
-    //while(1){    
-        //get option from client (-l or -g)
-        option = readOptionFromClient(commandSockFd);
+   
+    //get data port
+    dataSockFdportno = getDataPort(commandSockFd);
+    //get option from client (-l or -g)
+    option = readOptionFromClient(commandSockFd);
 
-        //if listing files
-        if(option == 1){
-            //Sends file names
-            fileStr = createFileNameString(fileStr);
-            writeToSocket(commandSockFd, fileStr);
-            printf("Directory listing sent to client\n");
-        }
 
+    //if listing files
+    if(option == 1){
+        //Sends file names
+        fileStr = createFileNameString(fileStr);
+        writeToSocket(commandSockFd, fileStr);
+        printf("Directory listing sent to client\n");
+    }
+
+    //send file
+    else if( option == 2){
+        //read in file name
+        printf("read file name\n"); 
+        fileName = readFileName(commandSockFd, fileName);
+        //verify file name, 0 if unable to open file, file descriptor if openable
+        printf("verify name\n");
+        fp = verifyFileName(commandSockFd, fileName);
         //send file
-        else if( option == 2){
-            //read in file name
-            printf("read file name\n"); 
-            fileName = readFileName(commandSockFd, fileName);
-            //verify file name, 0 if unable to open file, file descriptor if openable
-            printf("verify name\n");
-            fp = verifyFileName(commandSockFd, fileName);
-            //send file
-            printf("send file in main\n");
-            sendFile(fileName, commandSockFd, fp);
-        }
+        printf("send file in main\n");
+        sendFile(fileName, commandSockFd, fp);
+    }
    // }
 
     return 0; 

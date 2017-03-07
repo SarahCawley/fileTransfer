@@ -1,0 +1,15 @@
+int getDataPort(int sockfd){
+    int dataSockFd, n;
+    char * portNoStr[8];
+
+    bzero(portNoStr);
+
+    n = read(sockfd, portNoStr, 8);
+    if (n < 0) 
+         error("ERROR reading from socket");
+
+    dataSockFd = atoi(portNoStr);
+    printf("the data port number string is %s, int is %i\n ", portNoStr, dataSockFd);
+
+    return dataSockFd;
+}

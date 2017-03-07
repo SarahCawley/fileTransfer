@@ -9,14 +9,14 @@ import socket               # Import socket module
 import sys					# Import system to read from command line
 import os.path				# checks files in the path
 
-s = socket.socket()         # Create a socket object
+
 
 #function to read from socket
 # returns the string read from the server
-def readFromServer(s):
+def readFromServer(sockfd):
 	more = 0 # there is no more, 1 more to print
 	#get length of file
-	fileLength = s.recv(3)
+	fileLength = sockfd.recv(3)
 	#print "file length " + fileLength
 	fileLength = int(fileLength)
 
@@ -29,20 +29,20 @@ def readFromServer(s):
 		return ("Nothing to print", more)
 
 	#read from server
-	stringFromServer = s.recv(fileLength)
+	stringFromServer = sockfd.recv(fileLength)
 
 	return (stringFromServer, more)
 
-def sendOptionToServer(option):
-	s.send(option)
+def sendOptionToServer(option, sockfd):
+	sockfd.send(option)
 	return
 
-def writeToFile(fileName, s):
+def writeToFile(fileName, sockfd):
 	f = open(path,"a+")
 	i = 1
 
 	while True:
-		fileContents, more = readFromServer(s)
+		fileContents, more = readFromServer(sockfd)
 		#see if there is anything to write
 		if fileContents == "Nothing to print":
 			return
@@ -74,10 +74,16 @@ def isFileOnClient(fileName):
 	else:
 		return path
 
+def createDataSocket(portno):
+	#create data socket
+	data  = socket.socket()
+	dataPort = int(dataPort)
+	data.connect((server, dataPort))
+
 
 
 # check hostname and portnumber from command line
-if( len(sys.argv) < 4):
+if( len(sys.argv) < 5):
 	print "usage: python ftclient.py [server name] [command port number] [-l (list files)] [data transfer port]  OR"
 	print "usage: python ftclient.py [server name] [command port number] [-g (transfer files)] [file name] [data transfer port]" 
 	quit()
@@ -86,15 +92,24 @@ if( len(sys.argv) < 4):
 server = sys.argv[1]
 port = int(sys.argv[2])
 
-# connect to server
-s.connect((server, port))
-print s.recv(17)
+# connect to command server
+command = socket.socket()  
+command.connect((server, port))
+print command.recv(17) + " command"
 
 #if is listing files
 if (sys.argv[3] == '-l'):
-	sendOptionToServer('-l')
-	files, n = readFromServer(s)
+	if( len(sys.argv) < 5):
+		print "usage: python ftclient.py [server name] [command port number] [-l (list files)] [data transfer port]"
+		quit()
+	dataPort = sys.argv[4]
+	#send data port number
+	command.send(dataPort)
+	createDataSocket(dataPort)
+	sendOptionToServer('-l', command)
+	files, n = readFromServer(data)
 	print files
+	data.close
 
 # if is getting files
 elif (sys.argv[3] == '-g'):
@@ -120,4 +135,4 @@ else:
 
 
 
-s.close                     # Close the socket when done
+command.close                     # Close the socket when done

@@ -9,14 +9,14 @@ import socket               # Import socket module
 import sys					# Import system to read from command line
 import os.path				# checks files in the path
 
-s = socket.socket()         # Create a socket object
+
 
 #function to read from socket
 # returns the string read from the server
-def readFromServer(s):
+def readFromServer(sockfd):
 	more = 0 # there is no more, 1 more to print
 	#get length of file
-	fileLength = s.recv(3)
+	fileLength = sockfd.recv(3)
 	#print "file length " + fileLength
 	fileLength = int(fileLength)
 
@@ -29,20 +29,20 @@ def readFromServer(s):
 		return ("Nothing to print", more)
 
 	#read from server
-	stringFromServer = s.recv(fileLength)
+	stringFromServer = sockfd.recv(fileLength)
 
 	return (stringFromServer, more)
 
-def sendOptionToServer(option):
-	s.send(option)
+def sendOptionToServer(option, sockfd):
+	sockfd.send(option)
 	return
 
-def writeToFile(fileName, s):
+def writeToFile(fileName, sockfd):
 	f = open(path,"a+")
 	i = 1
 
 	while True:
-		fileContents, more = readFromServer(s)
+		fileContents, more = readFromServer(sockfd)
 		#see if there is anything to write
 		if fileContents == "Nothing to print":
 			return
@@ -65,7 +65,7 @@ def isFileOnClient(fileName):
 	path = "./" + fileName
 	#check if file already exists on client
 	if os.path.isfile(path):
-		print path + "is already in the directory. Naming file copy-" + fileName
+		print path + " is already in the directory. Naming file copy-" + fileName
 		path = "./copy-" + fileName
 		# check if ./copy-fileName already exists if so remove it
 		if os.path.isfile(path):
@@ -74,10 +74,16 @@ def isFileOnClient(fileName):
 	else:
 		return path
 
+def createDataSocket(dataPort):
+	#create data socket
+	data  = socket.socket()
+	dataPort = int(dataPort)
+	data.connect((server, dataPort))
+
 
 
 # check hostname and portnumber from command line
-if( len(sys.argv) < 4):
+if( len(sys.argv) < 5):
 	print "usage: python ftclient.py [server name] [command port number] [-l (list files)] [data transfer port]  OR"
 	print "usage: python ftclient.py [server name] [command port number] [-g (transfer files)] [file name] [data transfer port]" 
 	quit()
@@ -86,29 +92,60 @@ if( len(sys.argv) < 4):
 server = sys.argv[1]
 port = int(sys.argv[2])
 
-# connect to server
-s.connect((server, port))
-print s.recv(17)
+# connect to command server
+command = socket.socket()  
+command.connect((server, port))
+print command.recv(22)
+
 
 #if is listing files
 if (sys.argv[3] == '-l'):
-	sendOptionToServer('-l')
-	files, n = readFromServer(s)
+	if( len(sys.argv) < 5):
+		print "usage: python ftclient.py [server name] [command port number] [-l (list files)] [data transfer port]"
+		quit()
+	
+	sendOptionToServer('-l', command)
+	
+	dataPort = sys.argv[4]
+	#send data port number
+	command.send(dataPort)
+	# create data connection
+	data  = socket.socket()
+	dataPort = int(dataPort)
+	data.connect((server, dataPort))
+
+	files, n = readFromServer(data)
 	print files
+	data.close
 
 # if is getting files
 elif (sys.argv[3] == '-g'):
-	# get file name from user
-	sendOptionToServer('-g')
-	fileName = raw_input("Please enter the name of the file you wish to download ")
-	s.send(fileName)
+	if( len(sys.argv) < 6):
+		print "usage: python ftclient.py [server name] [command port number] [-g (transfer files)] [data transfer port] [file name] "
+		quit()	
+	 
+	sendOptionToServer('-g', command)
+	# get file name
+	fileName = sys.argv[5] 
+	command.send(fileName)
 	# get verification of valid name
-	valid = s.recv(1)
+	valid = command.recv(1)
 	valid = int(valid)
 
 	if valid == 1:
+
+		dataPort = sys.argv[4]
+		#send data port number
+		command.send(dataPort)
+		# create data connection
+		data  = socket.socket()
+		dataPort = int(dataPort)
+		data.connect((server, dataPort))
+
+
 		path = isFileOnClient(fileName)
-		writeToFile(fileName, s)
+		writeToFile(fileName, data)
+		data.close
 		
 	else:
 		print fileName + " is not a valid file name. Please try again"
@@ -119,5 +156,5 @@ else:
 
 
 
-
-s.close                     # Close the socket when done
+#close command socket
+command.close                     

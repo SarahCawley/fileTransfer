@@ -302,20 +302,18 @@ int main(int argc, char *argv[])
     commandSockFd = createSocket(hostname, " open on command port ", portno);
     
 
-    n = write(commandSockFd,"Server Connected\n",17);
+    n = write(commandSockFd,"Comm Server Connected\n",22);
     if (n < 0) error("ERROR writing to socket");
    
-    //get data port
-    dataSockFdportno = getDataPort(commandSockFd);
-    
-    //create data connection
-    dataSockFd = createSocket(hostname, " open on data port ", dataSockFdportno);
     //get option from client (-l or -g)
     option = readOptionFromClient(commandSockFd);
-
-
+    
     //if listing files
     if(option == 1){
+        //get data port
+        dataSockFdportno = getDataPort(commandSockFd);
+        //create data connection
+        dataSockFd = createSocket(hostname, " open on data port ", dataSockFdportno);
         //Sends file names
         fileStr = createFileNameString(fileStr);
         writeToSocket(dataSockFd, fileStr);
@@ -330,9 +328,14 @@ int main(int argc, char *argv[])
         //verify file name, 0 if unable to open file, file descriptor if openable
         printf("verify name\n");
         fp = verifyFileName(commandSockFd, fileName);
+
+        //get data port
+        dataSockFdportno = getDataPort(commandSockFd);
+        //create data connection
+        dataSockFd = createSocket(hostname, " open on data port ", dataSockFdportno);
         //send file
         printf("send file in main\n");
-        sendFile(fileName, commandSockFd, fp);
+        sendFile(fileName, dataSockFd, fp);
     }
    // }
 

@@ -246,18 +246,19 @@ int createSocket( char * hostname, char * message, int portno){
     newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
     if (newsockfd < 0) 
         error("ERROR on accept");
-    printf("Client connected\n");
+    printf("Client connected on port number %i\n", portno);
 
     return newsockfd;
 }
 
 int getDataPort(int sockfd){
     int dataSockFd, n;
-    char * portNoStr[8];
+    char * portNoStr = malloc(10);
+    
 
-    bzero(portNoStr);
+    bzero(portNoStr, 10);
 
-    n = read(sockfd, portNoStr, 8);
+    n = read(sockfd, portNoStr, 10);
     if (n < 0) 
          error("ERROR reading from socket");
 
@@ -272,7 +273,7 @@ int main(int argc, char *argv[])
     char * fileStr = "\nDirectory Listing From Server:\n"; //holds string with all files
     int stringLengthInt = 0; //to store length of string as int
     char * stringLengthStr; //to store length of string as char *
-    int sockfd, commandSockFd, dataSockFdportno;
+    int sockfd, commandSockFd, dataSockFd, dataSockFdportno;
     //socklen_t clilen;
     char buffer[256];
     //struct sockaddr_in serv_addr, cli_addr;
@@ -282,6 +283,7 @@ int main(int argc, char *argv[])
     int option = 0; //if -l or -g
     int fp;
     char * message;
+    int portno;
     
     
 
@@ -300,20 +302,21 @@ int main(int argc, char *argv[])
     commandSockFd = createSocket(hostname, " open on command port ", portno);
     
 
-    n = write(commandSockFd,"Server Connected\n",17);
+    n = write(commandSockFd,"Comm Server Connected\n",22);
     if (n < 0) error("ERROR writing to socket");
    
-    //get data port
-    dataSockFdportno = getDataPort(commandSockFd);
     //get option from client (-l or -g)
     option = readOptionFromClient(commandSockFd);
-
-
+    
     //if listing files
     if(option == 1){
+        //get data port
+        dataSockFdportno = getDataPort(commandSockFd);
+        //create data connection
+        dataSockFd = createSocket(hostname, " open on data port ", dataSockFdportno);
         //Sends file names
         fileStr = createFileNameString(fileStr);
-        writeToSocket(commandSockFd, fileStr);
+        writeToSocket(dataSockFd, fileStr);
         printf("Directory listing sent to client\n");
     }
 
@@ -325,9 +328,14 @@ int main(int argc, char *argv[])
         //verify file name, 0 if unable to open file, file descriptor if openable
         printf("verify name\n");
         fp = verifyFileName(commandSockFd, fileName);
+
+        //get data port
+        dataSockFdportno = getDataPort(commandSockFd);
+        //create data connection
+        dataSockFd = createSocket(hostname, " open on data port ", dataSockFdportno);
         //send file
         printf("send file in main\n");
-        sendFile(fileName, commandSockFd, fp);
+        sendFile(fileName, dataSockFd, fp);
     }
    // }
 

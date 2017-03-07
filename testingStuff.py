@@ -65,7 +65,7 @@ def isFileOnClient(fileName):
 	path = "./" + fileName
 	#check if file already exists on client
 	if os.path.isfile(path):
-		print path + "is already in the directory. Naming file copy-" + fileName
+		print path + " is already in the directory. Naming file copy-" + fileName
 		path = "./copy-" + fileName
 		# check if ./copy-fileName already exists if so remove it
 		if os.path.isfile(path):
@@ -74,7 +74,7 @@ def isFileOnClient(fileName):
 	else:
 		return path
 
-def createDataSocket(portno):
+def createDataSocket(dataPort):
 	#create data socket
 	data  = socket.socket()
 	dataPort = int(dataPort)
@@ -95,35 +95,57 @@ port = int(sys.argv[2])
 # connect to command server
 command = socket.socket()  
 command.connect((server, port))
-print command.recv(17) + " command"
+print command.recv(22)
+
 
 #if is listing files
 if (sys.argv[3] == '-l'):
 	if( len(sys.argv) < 5):
 		print "usage: python ftclient.py [server name] [command port number] [-l (list files)] [data transfer port]"
 		quit()
+	
+	sendOptionToServer('-l', command)
+	
 	dataPort = sys.argv[4]
 	#send data port number
 	command.send(dataPort)
-	createDataSocket(dataPort)
-	sendOptionToServer('-l', command)
+	# create data connection
+	data  = socket.socket()
+	dataPort = int(dataPort)
+	data.connect((server, dataPort))
+
 	files, n = readFromServer(data)
 	print files
 	data.close
 
 # if is getting files
 elif (sys.argv[3] == '-g'):
-	# get file name from user
-	sendOptionToServer('-g')
-	fileName = raw_input("Please enter the name of the file you wish to download ")
-	s.send(fileName)
+	if( len(sys.argv) < 6):
+		print "usage: python ftclient.py [server name] [command port number] [-g (transfer files)] [data transfer port] [file name] "
+		quit()	
+	 
+	sendOptionToServer('-g', command)
+	# get file name
+	fileName = sys.argv[5] 
+	command.send(fileName)
 	# get verification of valid name
-	valid = s.recv(1)
+	valid = command.recv(1)
 	valid = int(valid)
 
 	if valid == 1:
+
+		dataPort = sys.argv[4]
+		#send data port number
+		command.send(dataPort)
+		# create data connection
+		data  = socket.socket()
+		dataPort = int(dataPort)
+		data.connect((server, dataPort))
+
+
 		path = isFileOnClient(fileName)
-		writeToFile(fileName, s)
+		writeToFile(fileName, data)
+		data.close
 		
 	else:
 		print fileName + " is not a valid file name. Please try again"
@@ -134,5 +156,5 @@ else:
 
 
 
-
-command.close                     # Close the socket when done
+#close command socket
+command.close                     

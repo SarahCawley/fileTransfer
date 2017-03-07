@@ -125,12 +125,11 @@ int verifyFileName(int sockfd, char * fileName){
     }
 }
 
-void sendFile(char * input_file, int output_socket, int fp){
+void sendFile(char * input_file, int transferSocket, int fp){
     char buffer[512];
     int bytes_read;
     int i =1; 
     char * bytes_read_str;
-printf("in send file outside of while loop\n");
     while (1) {
         // Read data into buffer.  We may not have enough to fill up buffer, so we
         // store how many bytes were actually read in bytes_read.
@@ -151,8 +150,8 @@ printf("in send file outside of while loop\n");
             while( strlen(bytes_read_str) < 3){
                 bytes_read_str = concat("0", bytes_read_str);
             }
-            write(output_socket, bytes_read_str, 3);
-            int bytes_written = write(output_socket, p, bytes_read);
+            write(transferSocket, bytes_read_str, 3);
+            int bytes_written = write(transferSocket, p, bytes_read);
 
             if (bytes_written <= 0) {
                 // handle errors
@@ -179,7 +178,6 @@ int writeToSocket(int sockfd, char * string){
     //get str length of string
     stringLengthStr = getLengthOfStringAsString(string);
     //write length to socket
-// printf("%s", stringLengthStr); 
     n = write(sockfd, stringLengthStr, 3);
     if (n < 0) {
         printf("error writing to socket\n");
@@ -194,7 +192,6 @@ int writeToSocket(int sockfd, char * string){
     return n;
 }
 
-/*read from socket*/
 
 
 /*Creates string with file names from the directory
@@ -222,28 +219,60 @@ char * createFileNameString(char * fileStr){
     return fileStr;
 }
 
+int createSocket( char * hostname, char * message, int portno){
+
+    int newsockfd, sockfd;
+    socklen_t clilen;
+    struct sockaddr_in serv_addr, cli_addr;
+
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) 
+    error("ERROR opening socket");
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+
+
+    
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons(portno);
+    if (bind(sockfd, (struct sockaddr *) &serv_addr,
+        sizeof(serv_addr)) < 0) 
+        error("ERROR on binding"); 
+printf("%s  %s %i \n", hostname, message, portno);
+    listen(sockfd,5);
+   
+    clilen = sizeof(cli_addr);
+    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+    if (newsockfd < 0) 
+        error("ERROR on accept");
+    printf("Client connected\n");
+
+    return newsockfd;
+}
 
 int main(int argc, char *argv[])
 {
     char * fileStr = "\nDirectory Listing From Server:\n"; //holds string with all files
     int stringLengthInt = 0; //to store length of string as int
     char * stringLengthStr; //to store length of string as char *
-    int sockfd, newsockfd, portno;
-    socklen_t clilen;
+    int sockfd, commandSockFd, portno;
+    //socklen_t clilen;
     char buffer[256];
-    struct sockaddr_in serv_addr, cli_addr;
+    //struct sockaddr_in serv_addr, cli_addr;
     int n, i;
     char * stringToSend; //string to sent to client
     char * fileName; //filename from client
     int option = 0; //if -l or -g
     int fp;
+    char * message;
     
     
 
     /*print hostname hostname*/
     char hostname[128];
     gethostname(hostname, sizeof hostname);
-    printf("Server name: %s\n", hostname);
+    
 
     //check port number provided
     if (argc < 2) {
@@ -251,59 +280,37 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    //create socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) 
-    error("ERROR opening socket");
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-
-
     portno = atoi(argv[1]);
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(portno);
-    if (bind(sockfd, (struct sockaddr *) &serv_addr,
-        sizeof(serv_addr)) < 0) 
-        error("ERROR on binding");
+    commandSockFd = createSocket(hostname, " open on command port ", portno);
+    // printf("%s open on command port %i \n", hostname, portno);
 
-    while(1){
-
-        //listen for the new connection and connect
-        listen(sockfd,5);
-       
-        clilen = sizeof(cli_addr);
-        newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-        if (newsockfd < 0) 
-            error("ERROR on accept");
-        printf("Client connected\n");
-
-        n = write(newsockfd,"Server Connected\n",17);
-        if (n < 0) error("ERROR writing to socket");
-        
+    n = write(commandSockFd,"Server Connected\n",17);
+    if (n < 0) error("ERROR writing to socket");
+    //while(1){    
         //get option from client (-l or -g)
-        option = readOptionFromClient(newsockfd);
+        option = readOptionFromClient(commandSockFd);
 
         //if listing files
         if(option == 1){
             //Sends file names
             fileStr = createFileNameString(fileStr);
-            writeToSocket(newsockfd, fileStr);
-            printf("Directory listing sent to client");
+            writeToSocket(commandSockFd, fileStr);
+            printf("Directory listing sent to client\n");
         }
 
         //send file
         else if( option == 2){
             //read in file name
             printf("read file name\n"); 
-            fileName = readFileName(newsockfd, fileName);
+            fileName = readFileName(commandSockFd, fileName);
             //verify file name, 0 if unable to open file, file descriptor if openable
             printf("verify name\n");
-            fp = verifyFileName(newsockfd, fileName);
+            fp = verifyFileName(commandSockFd, fileName);
             //send file
             printf("send file in main\n");
-            sendFile(fileName, newsockfd, fp);
+            sendFile(fileName, commandSockFd, fp);
         }
-    }
+   // }
 
     return 0; 
 }

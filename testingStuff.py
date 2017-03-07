@@ -52,8 +52,10 @@ def writeToFile(fileName, s):
 
 			i += 1
 			if more == 0:
+				print "File transfer complete"
 				f.close 
 				return
+
 
 # Checks if a file with a name already exists
 # if so informs user and changes new file to 'copy-fileName'
@@ -76,7 +78,8 @@ def isFileOnClient(fileName):
 
 # check hostname and portnumber from command line
 if( len(sys.argv) < 4):
-	print "usage: python ftclient.py [server name] [port number] [-l (list files) -g (get files)\n"
+	print "usage: python ftclient.py [server name] [command port number] [-l (list files)] [data transfer port]  OR"
+	print "usage: python ftclient.py [server name] [command port number] [-g (transfer files)] [file name] [data transfer port]" 
 	quit()
 
 # set server and port

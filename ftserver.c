@@ -131,8 +131,8 @@ void sendFile(char * input_file, int output_socket, int fp){
         // to keep track of how many bytes are left to write.
         void *p = buffer;
         while (bytes_read > 0) {
-            // bytes_read_str =  intToString(3, bytes_read_str);
-            // write(output_socket, bytes_read_str, 3);
+            bytes_read_str =  intToString(3, bytes_read_str);
+            write(output_socket, "109", 3);
             int bytes_written = write(output_socket, p, bytes_read);
 
             if (bytes_written <= 0) {
@@ -266,14 +266,14 @@ int main(int argc, char *argv[])
             fileStr = createFileNameString(fileStr);
             stringLengthInt = strlen(fileStr);
             stringLengthStr = intToString(stringLengthInt, stringLengthStr);
-            while( strlen(stringLengthStr) < 10){
+            while( strlen(stringLengthStr) < 3){
                 stringLengthStr = concat("0", stringLengthStr);
             }
             printf("Sending directory listing to client\n");
         
             //TODO MOVE WRITE INTO A FUNCTION
             //sends length of string to come
-            write(newsockfd, stringLengthStr, 10);
+            write(newsockfd, stringLengthStr, 3);
             //send file names
             write(newsockfd, fileStr ,stringLengthInt);
         }

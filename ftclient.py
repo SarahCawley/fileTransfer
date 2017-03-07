@@ -7,23 +7,68 @@
 
 import socket               # Import socket module
 import sys					# Import system to read from command line
+import os.path				# checks files in the path
 
 s = socket.socket()         # Create a socket object
 
 #function to read from socket
-# if option is 1 print to screen
-# if option is 2 save to file
-def readFromServer(s, option):
-	fileLength = s.recv(10)
-	#print "the file length is: " + fileLength
+# returns the string read from the server
+def readFromServer(s):
+	more = 0 # there is no more, 1 more to print
+	#get length of file
+	fileLength = s.recv(3)
 	fileLength = int(fileLength)
+
+	#see if there is more coming, max buffer size is 512
+	if fileLength > 511:
+		more = 1
+	# exit if there is nothing left to read
+	if fileLength < 1:
+		return ("Nothing to print", more)
+
+	#read from server
 	stringFromServer = s.recv(fileLength)
-	print stringFromServer
-	return
+
+	return (stringFromServer, more)
 
 def sendOptionToServer(option):
 	s.send(option)
 	return
+
+def writeToFile(fileName, s):
+	f = open(path,"a+")
+
+	while True:
+		fileContents, more = readFromServer(s)
+		#see if there is anything to write
+		if fileContents == "Nothing to print":
+			return
+
+		else:
+			f.write(fileContents)
+			print "writing to file more is "
+			print more
+			if more == 0:
+				f.close 
+				return
+
+# Checks if a file with a name already exists
+# if so informs user and changes new file to 'copy-fileName'
+# returns the path to the new file
+def isFileOnClient(fileName):
+	# check if file exists in local dir
+	path = "./" + fileName
+	#check if file already exists on client
+	if os.path.isfile(path):
+		print path + "is already in the directory. Naming file copy-" + fileName
+		path = "./copy-" + fileName
+		# check if ./copy-fileName already exists if so remove it
+		if os.path.isfile(path):
+			os.remove(path)
+		return path
+	else:
+		return path
+
 
 
 # check hostname and portnumber from command line
@@ -42,7 +87,8 @@ print s.recv(17)
 #if is listing files
 if (sys.argv[3] == '-l'):
 	sendOptionToServer('-l')
-	readFromServer(s, 1)
+	files = readFromServer(s)
+	print files
 
 # if is getting files
 elif (sys.argv[3] == '-g'):
@@ -55,13 +101,11 @@ elif (sys.argv[3] == '-g'):
 	valid = int(valid)
 
 	if valid == 1:
-		print "valid name"
-		shortfile = s.recv(109)
-		print "this is the short file " + shortfile
-		# do all the things that happen with a valid name
+		path = isFileOnClient(fileName)
+		writeToFile(fileName, s)
+		
 	else:
 		print fileName + " is not a valid file name. Please try again"
-
 
 # wrong option
 else:
